@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Load Monitor — Feeder Load &amp; Province Peak</title>
+<style>
+  :root{
+    --bg:#141833;
+    --surface:#1D2142;
+    --surface-alt:#252A4D;
+    --border:rgba(255,255,255,0.08);
+    --border-soft:rgba(255,255,255,0.05);
+    --ink:#FFFFFF;
+    --ink-soft:#A9B2D6;
+    --ink-faint:#6D76A0;
+    --accent:#4C6FFF;
+    --accent-soft:rgba(76,111,255,0.16);
+    --peak:#FFB547;
+    --peak-soft:rgba(255,181,71,0.14);
+    --danger:#FF6B7A;
+    --radius:16px;
+    --sidebar-w:250px;
+    --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI Semibold", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-body);
+    -webkit-font-smoothing:antialiased;
+    line-height:1.45;
+  }
+  .mono{font-family:var(--font-mono);}
+  a{color:inherit;}
+
+  /* ---------- App shell ---------- */
+  .app-shell{
+    display:flex;
+    min-height:100vh;
+  }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    width:var(--sidebar-w);
+    flex:none;
+    background:linear-gradient(195deg, #0B0F2E 0%, #1C2560 55%, #3457E8 130%);
+    padding:26px 18px;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    position:sticky;
+    top:0;
+    height:100vh;
+    overflow-y:auto;
+  }
+  .sidebar-brand{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:4px 10px 22px;
+    margin-bottom:14px;
+    border-bottom:1px solid rgba(255,255,255,0.12);
+  }
+  .sidebar-brand .brand-mark{width:34px;height:26px;flex:none;}
+  .sidebar-brand .brand-text h1{
+    font-family:var(--font-display);
+    font-size:14.5px;
+    font-weight:700;
+    margin:0;
+    color:#fff;
+    letter-spacing:0.02em;
+  }
+  .sidebar-brand .brand-text p{
+    margin:2px 0 0;
+    font-size:10.5px;
+    color:rgba(255,255,255,0.55);
+    letter-spacing:0.06em;
+  }
+  .side-nav-item{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:12px 14px;
+    border-radius:12px;
+    border:none;
+    background:transparent;
+    color:rgba(255,255,255,0.65);
+    font-family:var(--font-body);
+    font-size:13.5px;
+    font-weight:600;
+    cursor:pointer;
+    text-align:left;
+    transition:background .15s, color .15s;
+  }
+  .side-nav-item:hover{background:rgba(255,255,255,0.06); color:#fff;}
+  .side-nav-item.active{
+    background:rgba(255,255,255,0.16);
+    color:#fff;
+    box-shadow:0 4px 14px rgba(0,0,0,0.25);
+  }
+  .side-nav-item .sni-icon{
+    width:30px;height:30px;flex:none;
+    border-radius:9px;
+    background:rgba(255,255,255,0.1);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .side-nav-item.active .sni-icon{background:var(--accent);}
+  .sidebar-footer{
+    margin-top:auto;
+    padding:14px 10px 4px;
+    font-size:10.5px;
+    color:rgba(255,255,255,0.4);
+    letter-spacing:0.03em;
+  }
+
+  /* ---------- Topbar ---------- */
+  .app-main{
+    flex:1;
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+  }
+  .topbar{
+    padding:26px 32px 6px;
+  }
+  .topbar-inner{
+    max-width:1320px;
+    margin:0 auto;
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:24px;
+    flex-wrap:wrap;
+  }
+  .topbar-eyebrow{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.12em;
+    color:var(--ink-faint);
+    font-weight:600;
+    margin:0 0 4px;
+  }
+  #pageTitle{
+    font-family:var(--font-display);
+    font-size:26px;
+    font-weight:700;
+    margin:0;
+    color:var(--ink);
+  }
+  .header-meta{
+    font-size:12px;
+    color:var(--ink-faint);
+    text-align:right;
+  }
+  .header-meta strong{color:var(--ink-soft);font-weight:700;}
+
+  /* ---------- Layout ---------- */
+  main{
+    max-width:1320px;
+    margin:0 auto;
+    padding:28px 32px 64px;
+    min-width:0;
+    width:100%;
+  }
+  section{margin-bottom:28px;}
+  .section-label{
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin:0 0 12px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .section-label::after{
+    content:"";
+    flex:1;
+    height:1px;
+    background:var(--border);
+  }
+
+  /* ---------- Filter bar ---------- */
+  .filter-bar{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:16px 20px;
+    display:flex;
+    align-items:flex-end;
+    gap:28px;
+    flex-wrap:wrap;
+  }
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .field label{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--ink-faint);
+    font-weight:600;
+  }
+  select{
+    appearance:none;
+    -webkit-appearance:none;
+    background:var(--bg);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:9px 34px 9px 12px;
+    font-family:var(--font-mono);
+    font-size:13px;
+    color:var(--ink);
+    min-width:190px;
+    cursor:pointer;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0L5 6L10 0Z' fill='%23A9B2D6'/></svg>");
+    background-repeat:no-repeat;
+    background-position:right 14px center;
+  }
+  select:focus, button:focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:1px;
+  }
+  .reset-btn{
+    border:1px solid var(--border);
+    background:var(--surface);
+    color:var(--ink-soft);
+    font-family:var(--font-body);
+    font-size:13px;
+    font-weight:600;
+    padding:9px 16px;
+    border-radius:6px;
+    cursor:pointer;
+    transition:border-color .15s, color .15s;
+  }
+  .reset-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+  .panel-full{width:100%;}
+
+  .panel-grid{
+    display:grid;
+    grid-template-columns:1.5fr 1fr;
+    gap:16px;
+    align-items:stretch;
+  }
+  @media (max-width: 900px){
+    .panel-grid{grid-template-columns:1fr;}
+  }
+  .chart-wrap-medium{height:260px;}
+  .chart-wrap-hero{height:340px;}
+  .hero-panel .panel-head h2{font-size:22px;}
+
+  /* ---------- Stat cards ---------- */
+  .stat-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:16px;
+  }
+  @media (max-width: 900px){
+    .stat-grid{grid-template-columns:1fr;}
+  }
+  .stat-card{
+    min-width:0;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:20px 22px 6px;
+    display:flex;
+    flex-direction:column;
+  }
+  .stat-card .sc-top{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom:14px;
+  }
+  .stat-card .sc-icon{
+    width:40px;height:40px;flex:none;
+    border-radius:11px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .stat-card .sc-label{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--ink-faint);
+    font-weight:600;
+    margin-bottom:4px;
+  }
+  .stat-card .sc-value{
+    font-family:var(--font-display);
+    font-size:22px;
+    font-weight:700;
+    color:var(--ink);
+    line-height:1.1;
+  }
+  .stat-card .sc-value span{
+    font-size:12px;
+    font-weight:500;
+    color:var(--ink-faint);
+    margin-left:4px;
+  }
+  .stat-card .sc-sub{
+    font-size:11px;
+    color:var(--ink-faint);
+    margin-top:2px;
+  }
+  .stat-card .sc-chart{height:70px;margin-top:4px;}
+
+  .peak-tag{
+    display:inline-block;
+    font-family:var(--font-mono);
+    font-size:10px;
+    font-weight:600;
+    letter-spacing:0.04em;
+    color:var(--peak);
+    background:var(--peak-soft);
+    border-radius:4px;
+    padding:1px 6px;
+    margin-left:8px;
+    vertical-align:middle;
+  }
+
+  /* ---------- Pages ---------- */
+  .page[hidden]{display:none;}
+
+  /* ---------- Table ---------- */
+  .table-wrap{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    overflow-x:auto;
+  }
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{
+    text-align:left;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    color:var(--ink-faint);
+    font-weight:600;
+    padding:12px 16px;
+    border-bottom:1px solid var(--border);
+    background:var(--bg);
+    white-space:nowrap;
+  }
+  thead th.num, tbody td.num{text-align:right;}
+  tbody td{
+    padding:11px 16px;
+    border-bottom:1px solid var(--border);
+    font-family:var(--font-mono);
+    color:var(--ink);
+    white-space:nowrap;
+  }
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr{cursor:pointer;transition:background .12s;}
+  tbody tr:hover{background:var(--surface-alt);}
+  tbody tr.active-row{background:var(--peak-soft);}
+  tbody td.month-cell{font-family:var(--font-display);font-weight:600;color:var(--ink);}
+  tbody td.total-cell{font-weight:600;}
+  .chart-wrap-tall{height:380px;}
+  .map-image-wrap{width:100%; border-radius:12px; overflow:hidden;}
+  .map-image-wrap svg{display:block;}
+  .map-panel{background:linear-gradient(160deg, var(--surface) 0%, var(--surface-alt) 130%);}
+
+  @keyframes pulseRing{
+    0%{ transform:scale(0.55); opacity:0.75; }
+    75%{ transform:scale(2.1); opacity:0; }
+    100%{ transform:scale(2.1); opacity:0; }
+  }
+  .pulse-ring{
+    transform-box:fill-box; transform-origin:center;
+    animation:pulseRing 2.4s cubic-bezier(.2,.6,.4,1) infinite;
+  }
+  @keyframes leaderFlow{ to{ stroke-dashoffset:-16; } }
+  .leader-flow{ animation:leaderFlow 1s linear infinite; }
+  @keyframes calloutIn{
+    from{ opacity:0; transform:translateY(8px) scale(0.92); }
+    to{ opacity:1; transform:translateY(0) scale(1); }
+  }
+  .callout-group{
+    transform-box:fill-box; transform-origin:center;
+    animation:calloutIn 0.55s cubic-bezier(.2,.7,.3,1) both;
+    cursor:pointer;
+    transition:filter .18s ease;
+  }
+  .callout-group:hover{ filter:brightness(1.18); }
+  .callout-group.is-active .callout-card{ stroke-width:2.4; }
+  .marker-group{ cursor:pointer; transition:filter .18s ease; }
+  .marker-group:hover{ filter:brightness(1.3); }
+  @keyframes markerIn{
+    from{ opacity:0; transform:scale(0.3); }
+    to{ opacity:1; transform:scale(1); }
+  }
+  .marker-dot{
+    transform-box:fill-box; transform-origin:center;
+    animation:markerIn 0.5s cubic-bezier(.3,1.4,.5,1) both;
+  }
+  @keyframes shapeIn{
+    from{ opacity:0; transform:scale(0.9); }
+    to{ opacity:1; transform:scale(1); }
+  }
+  .shape-group{
+    transform-box:fill-box; transform-origin:center;
+    animation:shapeIn 0.6s cubic-bezier(.2,.7,.3,1) both;
+    cursor:pointer;
+  }
+  .province-shape{ transition:filter .18s ease, stroke-width .18s ease; }
+  .shape-group:hover .province-shape,
+  .shape-group.is-active .province-shape{
+    filter:url(#shapeShadow) brightness(1.15);
+    stroke:#FFFFFF;
+  }
+
+  /* ---------- Panel ---------- */
+  .panel{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:20px 22px 16px;
+    display:flex;
+    flex-direction:column;
+  }
+  .panel-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:14px;
+    gap:12px;
+  }
+  .panel-head h2{
+    font-family:var(--font-display);
+    font-size:15px;
+    font-weight:600;
+    margin:0;
+  }
+  .panel-head .hint{
+    font-size:11.5px;
+    color:var(--ink-faint);
+    font-family:var(--font-mono);
+  }
+  .chart-wrap{position:relative;flex:1;min-height:260px;height:300px;min-width:0;}
+  .chart-svg{width:100%;height:100%;display:block;}
+  .chart-svg text{font-family:var(--font-mono);}
+  .chart-legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px 16px;
+    padding:14px 4px 4px;
+    border-top:1px solid var(--border);
+    margin-top:10px;
+  }
+  .prov-toggles{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-bottom:14px;
+  }
+  .prov-toggle{
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    padding:6px 12px 6px 8px;
+    border-radius:20px;
+    border:1.5px solid var(--border);
+    background:var(--surface-alt);
+    cursor:pointer;
+    font-family:var(--font-mono);
+    font-size:12px;
+    font-weight:600;
+    color:var(--ink-faint);
+    transition:border-color .15s, color .15s, background .15s;
+    -webkit-tap-highlight-color:transparent;
+    user-select:none;
+  }
+  .prov-toggle input{
+    position:absolute;
+    opacity:0;
+    width:0;
+    height:0;
+  }
+  .prov-toggle .pt-dot{
+    width:10px;height:10px;border-radius:50%;flex:none;
+    border:1.5px solid currentColor;
+    background:transparent;
+    transition:background .15s;
+  }
+  .prov-toggle.is-on{
+    color:var(--ink);
+    border-color:var(--pt-color, var(--accent));
+    background:color-mix(in srgb, var(--pt-color, var(--accent)) 16%, var(--surface-alt));
+  }
+  .prov-toggle.is-on .pt-dot{
+    background:var(--pt-color, var(--accent));
+    border-color:var(--pt-color, var(--accent));
+  }
+  .legend-item{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    color:var(--ink-soft);
+    white-space:nowrap;
+  }
+  .legend-item i{
+    width:9px;height:9px;border-radius:2px;flex:none;display:inline-block;
+  }
+  .legend-note{
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    color:var(--ink-faint);
+    font-style:normal;
+  }
+
+  footer{
+    max-width:1320px;
+    margin:0 auto;
+    padding:0 32px 40px;
+    color:var(--ink-faint);
+    font-size:11.5px;
+  }
+
+  @media (max-width: 900px){
+    .app-shell{flex-direction:column;}
+    .sidebar{
+      width:100%;
+      height:auto;
+      position:sticky;
+      flex-direction:row;
+      align-items:center;
+      overflow-x:auto;
+      padding:14px 16px;
+    }
+    .sidebar-brand{border-bottom:none;border-right:1px solid rgba(255,255,255,0.12);padding:0 16px 0 0;margin:0 10px 0 0;}
+    .side-nav-item{white-space:nowrap;}
+    .sidebar-footer{display:none;}
+  }
+  @media (max-width: 560px){
+    .topbar{padding:18px 18px 4px;}
+    main{padding:20px 18px 48px;}
+    .header-meta{display:none;}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <svg class="brand-mark" viewBox="0 0 46 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <line x1="2" y1="17" x2="44" y2="17" stroke="#FFFFFF" stroke-width="2"/>
+      <line x1="8" y1="17" x2="8" y2="6" stroke="#4C6FFF" stroke-width="2"/>
+      <line x1="18" y1="17" x2="18" y2="28" stroke="#4C6FFF" stroke-width="2"/>
+      <line x1="28" y1="17" x2="28" y2="6" stroke="#4C6FFF" stroke-width="2"/>
+      <line x1="38" y1="17" x2="38" y2="28" stroke="#4C6FFF" stroke-width="2"/>
+      <circle cx="8" cy="6" r="2.4" fill="#FFFFFF"/>
+      <circle cx="18" cy="28" r="2.4" fill="#FFFFFF"/>
+      <circle cx="28" cy="6" r="2.4" fill="#FFFFFF"/>
+      <circle cx="38" cy="28" r="2.4" fill="#FFFFFF"/>
+    </svg>
+    <div class="brand-text">
+      <h1>LOAD MONITOR</h1>
+      <p>ENERGY OPS</p>
+    </div>
+  </div>
+  <nav id="pageNav">
+    <button class="side-nav-item active" data-page="load01">
+      <span class="sni-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 19V10M10 19V5M16 19V13M22 19V8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </span>
+      LOAD01
+    </button>
+    <button class="side-nav-item" data-page="province">
+      <span class="sni-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 3a9 9 0 0 0 0 18 9 9 0 0 1 0-18Z" stroke="currentColor" stroke-width="2"/></svg>
+      </span>
+      PROVINCE PEAK
+    </button>
+  </nav>
+  <div class="sidebar-footer">Monthly load register · offline build</div>
+</aside>
+
+<div class="app-main">
+<header class="topbar">
+  <div class="topbar-inner">
+    <div>
+      <p class="topbar-eyebrow" id="pageEyebrow">SUBSTATION &amp; FEEDER LOAD</p>
+      <h1 id="pageTitle">Load Monitor</h1>
+    </div>
+    <div class="header-meta" id="headerMeta">
+      <div><strong>450</strong> feeders · <strong>51</strong> substations · <strong>2</strong> voltage classes</div>
+      <div>Source: monthly load register</div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <div id="page-load01" class="page">
+
+  <section>
+    <div class="filter-bar">
+      <div class="field">
+        <label for="voltageSelect">Voltage level</label>
+        <select id="voltageSelect"></select>
+      </div>
+      <div class="field">
+        <label for="substationSelect">Substation</label>
+        <select id="substationSelect"></select>
+      </div>
+      <div class="field">
+        <label for="feederSelect">Feeder</label>
+        <select id="feederSelect"></select>
+      </div>
+      <div class="field">
+        <label for="monthSelect">Month</label>
+        <select id="monthSelect"></select>
+      </div>
+      <button class="reset-btn" id="resetBtn">Reset filters</button>
+    </div>
+  </section>
+
+  <section>
+    <p class="section-label" id="trendLabel">Monthly comparison &amp; trend</p>
+    <div class="panel panel-full">
+      <div class="panel-head">
+        <h2 id="trendTitle">Load trend</h2>
+        <span class="hint">MW, monthly, by feeder · line with area fill · click a month to filter</span>
+      </div>
+      <div class="chart-wrap chart-wrap-tall"><div class="chart-svg" id="trendChart"></div></div>
+      <div class="chart-legend" id="chartLegend"></div>
+    </div>
+  </section>
+
+  </div>
+
+  <div id="page-province" class="page" hidden>
+
+  <section>
+    <p class="section-label">Total peak trend</p>
+    <div class="panel panel-full hero-panel">
+      <div class="panel-head">
+        <h2>Performance</h2>
+        <span class="hint">Total province peak · MW, monthly</span>
+      </div>
+      <div class="chart-wrap chart-wrap-hero"><div class="chart-svg" id="provTotalChart"></div></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="section-label">Peak load summary</p>
+    <div class="stat-grid" id="peakSummary"></div>
+  </section>
+
+  <section>
+    <p class="section-label">Province map</p>
+    <div class="panel panel-full map-panel">
+      <div class="panel-head">
+        <h2>Peak load by province</h2>
+        <span class="hint">real province map · trend + peak MW at each location</span>
+      </div>
+      <div class="map-image-wrap" id="provMiniMap"></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="section-label">Monthly peak by province</p>
+    <div class="panel panel-full">
+      <div class="panel-head">
+        <h2 id="provTrendTitle">Province peak load</h2>
+        <span class="hint">MW, monthly, by province · bars + trend lines</span>
+      </div>
+      <div class="prov-toggles" id="provToggles"></div>
+      <div class="chart-wrap chart-wrap-tall"><div class="chart-svg" id="provChart"></div></div>
+      <div class="chart-legend" id="provLegend"></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="section-label">Peak detail by month</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th class="num">Total (MW)</th>
+            <th class="num">PNB</th>
+            <th class="num">NSN</th>
+            <th class="num">LRI</th>
+            <th class="num">CNT</th>
+            <th class="num">SBR</th>
+            <th class="num">UTI</th>
+            <th class="num">REG1</th>
+            <th class="num">REG4</th>
+            <th>Peak at</th>
+          </tr>
+        </thead>
+        <tbody id="provTableBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  </div>
+
+</main>
+
+<footer id="pageFooter">
+  Values reflect metered load per feeder, shown individually (not summed), aggregated monthly. Click a month on the chart to filter by it.
+</footer>
+
+</div>
+</div>
+
+<script>
+let DATA, MONTHS, RECORDS, PROVINCE_DATA, PROV_RECORDS;
+
+async function boot(){
+  let sumRes, provRes;
+  try{
+    [sumRes, provRes] = await Promise.all([
+      fetch('data/sum_data.json'),
+      fetch('data/province_data.json')
+    ]);
+  } catch(err){
+    showLoadError('Could not reach the data files (network/CORS error). If you just opened this file directly by double-clicking it, browsers block local file fetches — serve it with a local web server instead, or use GitHub Pages.');
+    return;
+  }
+  if(!sumRes.ok || !provRes.ok){
+    showLoadError('data/sum_data.json or data/province_data.json was not found next to this HTML file. Make sure the "data" folder is uploaded alongside index.html.');
+    return;
+  }
+  DATA = await sumRes.json();
+  MONTHS = DATA.months;
+  RECORDS = DATA.records;
+  PROVINCE_DATA = await provRes.json();
+  PROV_RECORDS = PROVINCE_DATA.records;
+
+  runApp();
+}
+
+function showLoadError(msg){
+  document.body.innerHTML = `<div style="padding:48px;font-family:-apple-system,sans-serif;color:#fff;background:#141833;min-height:100vh;max-width:640px;margin:0 auto;">
+    <h1 style="font-size:20px;">Couldn't load dashboard data</h1>
+    <p style="color:#A9B2D6;line-height:1.6;">${msg}</p>
+  </div>`;
+}
+
+function runApp(){
+const PROVINCE_KEYS = ['PNB','NSN','LRI','CNT','SBR','UTI'];
+const provChartEnabled = new Set(PROVINCE_KEYS);
+
+/* Real province identities (lower-north / upper-central Thailand, PEA service area).
+   Shape outlines and centroids were traced programmatically from the actual
+   reference map image (color-region contour detection + simplification), so
+   these polygons follow each province's real boundary shape and position. */
+const MAP_IMG_W = 900, MAP_IMG_H = 800;
+const PROVINCE_INFO = {
+  NSN: { th: 'นครสวรรค์', en: 'Nakhon Sawan', color: '#FFD54F',
+    cx: 494.5, cy: 408.9, callout: [433.8, 110],
+    points: '296,190 305,260 248,357 274,427 316,488 396,499 435,535 452,584 485,593 516,525 589,458 584,384 556,380 549,360 565,289 498,216 465,216 462,181 390,231 334,222' },
+  PNB: { th: 'เพชรบูรณ์', en: 'Phetchabun', color: '#B39DDB',
+    cx: 703.0, cy: 286.3, callout: [740, 140],
+    points: '750,47 680,106 618,210 577,216 549,244 573,286 556,356 590,373 607,478 651,517 720,516 744,455 779,447 780,340 822,188 858,188 866,170 846,94 776,84' },
+  UTI: { th: 'อุทัยธานี', en: 'Uthai Thani', color: '#FFB74D',
+    cx: 166.9, cy: 468.4, callout: [50, 460],
+    points: '162,322 124,347 99,346 84,411 51,448 55,488 46,500 85,559 121,568 170,610 199,610 220,625 252,562 241,493 260,485 284,443 265,432 266,406 237,352' },
+  CNT: { th: 'ชัยนาท', en: 'Chai Nat', color: '#A5D6A7',
+    cx: 332.3, cy: 581.7, callout: [200, 700],
+    points: '286,457 265,494 250,502 258,573 251,600 235,608 234,620 301,667 346,671 354,689 371,689 404,654 410,626 428,605 425,549 394,526 388,507 328,510 304,488 298,462' },
+  LRI: { th: 'ลพบุรี', en: 'Lopburi', color: '#F48FB1',
+    cx: 633.0, cy: 597.9, callout: [800, 600],
+    points: '783,458 752,459 751,484 721,525 621,517 595,465 525,529 517,565 485,605 518,689 520,742 535,745 593,690 742,673 770,638 763,592 784,537' },
+  SBR: { th: 'สิงห์บุรี', en: 'Sing Buri', color: '#90CAF9',
+    cx: 456.2, cy: 681.5, callout: [500, 730],
+    points: '438,585 437,609 420,625 413,663 392,671 396,696 405,707 406,727 450,742 464,757 490,762 509,744 512,693 502,666 494,662 490,625 470,601' }
+};
+
+const ACCENT = '#4C6FFF';
+const PEAK = '#FFB547';
+const INK = '#FFFFFF';
+const INK_SOFT = '#A9B2D6';
+const INK_FAINT = '#6D76A0';
+const BORDER = 'rgba(255,255,255,0.08)';
+const PALETTE = ['#4C6FFF','#F539A6','#05CD99','#FFB547','#9B5DE5','#00C2FF','#FF6B7A','#4ADE80','#FFD166','#818CF8','#FB7185','#2DD4BF'];
+function colorFor(i){ return PALETTE[i % PALETTE.length]; }
+
+const state = {
+  voltage: 'all',
+  substation: 'all',
+  feeder: 'all',
+  monthIdx: 'all'
+};
+
+const voltages = Array.from(new Set(RECORDS.map(r => r.v))).sort();
+
+function substationsFor(voltage){
+  const set = new Set();
+  RECORDS.forEach(r => { if(voltage === 'all' || r.v === voltage) set.add(r.s); });
+  return Array.from(set).sort();
+}
+
+function feedersFor(voltage, substation){
+  return RECORDS.filter(r =>
+    (voltage === 'all' || r.v === voltage) &&
+    (substation === 'all' || r.s === substation)
+  ).map(r => r.f).sort();
+}
+
+function filteredRecords(){
+  return RECORDS.filter(r =>
+    (state.voltage === 'all' || r.v === state.voltage) &&
+    (state.substation === 'all' || r.s === state.substation) &&
+    (state.feeder === 'all' || r.f === state.feeder)
+  );
+}
+
+function recordsForVoltage(){
+  return RECORDS.filter(r => state.voltage === 'all' || r.v === state.voltage);
+}
+
+function fmt(n, d=1){
+  return n.toLocaleString('en-US', {minimumFractionDigits:d, maximumFractionDigits:d});
+}
+
+/* ---------- populate selects ---------- */
+const voltageSelect = document.getElementById('voltageSelect');
+const substationSelect = document.getElementById('substationSelect');
+const feederSelect = document.getElementById('feederSelect');
+const monthSelect = document.getElementById('monthSelect');
+
+function buildVoltageOptions(){
+  voltageSelect.innerHTML = '<option value="all">All voltage levels</option>' +
+    voltages.map(v => `<option value="${v}">${v}</option>`).join('');
+  voltageSelect.value = state.voltage;
+}
+
+function buildSubstationOptions(){
+  const subs = substationsFor(state.voltage);
+  substationSelect.innerHTML = '<option value="all">All substations</option>' +
+    subs.map(s => `<option value="${s}">${s}</option>`).join('');
+  if(!subs.includes(state.substation)) state.substation = 'all';
+  substationSelect.value = state.substation;
+}
+
+function buildFeederOptions(){
+  const feeders = feedersFor(state.voltage, state.substation);
+  feederSelect.innerHTML = '<option value="all">All feeders</option>' +
+    feeders.map(f => `<option value="${f}">${f}</option>`).join('');
+  if(!feeders.includes(state.feeder)) state.feeder = 'all';
+  feederSelect.value = state.feeder;
+}
+
+function buildMonthOptions(){
+  monthSelect.innerHTML = '<option value="all">All months</option>' +
+    MONTHS.map((m,i) => `<option value="${i}">${m}</option>`).join('');
+  monthSelect.value = state.monthIdx;
+}
+
+buildVoltageOptions();
+buildSubstationOptions();
+buildFeederOptions();
+buildMonthOptions();
+buildProvToggles();
+
+voltageSelect.addEventListener('change', e => {
+  state.voltage = e.target.value;
+  buildSubstationOptions();
+  buildFeederOptions();
+  renderAll();
+});
+substationSelect.addEventListener('change', e => {
+  state.substation = e.target.value;
+  buildFeederOptions();
+  renderAll();
+});
+feederSelect.addEventListener('change', e => {
+  state.feeder = e.target.value;
+  renderAll();
+});
+monthSelect.addEventListener('change', e => {
+  state.monthIdx = e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10);
+  renderAll();
+});
+document.getElementById('resetBtn').addEventListener('click', () => {
+  state.voltage = 'all';
+  state.substation = 'all';
+  state.feeder = 'all';
+  state.monthIdx = 'all';
+  buildVoltageOptions();
+  buildSubstationOptions();
+  buildFeederOptions();
+  buildMonthOptions();
+  renderAll();
+});
+
+/* ---------- charts (dependency-free SVG, no external libraries) ---------- */
+
+function niceMax(v){
+  if(!isFinite(v) || v <= 0) return 1;
+  const exp = Math.floor(Math.log10(v));
+  const base = Math.pow(10, exp);
+  const norm = v / base;
+  let niceNorm;
+  if(norm <= 1) niceNorm = 1;
+  else if(norm <= 2) niceNorm = 2;
+  else if(norm <= 5) niceNorm = 5;
+  else niceNorm = 10;
+  return niceNorm * base;
+}
+
+function niceMin(v){
+  if(!isFinite(v) || v >= 0) return 0;
+  return -niceMax(-v);
+}
+
+function svgEl(tag, attrs, children){
+  let s = `<${tag}`;
+  for(const k in attrs) s += ` ${k}="${attrs[k]}"`;
+  s += children !== undefined ? `>${children}</${tag}>` : '/>';
+  return s;
+}
+
+/* turns a flat "x1,y1 x2,y2 ..." point string into a smooth closed
+   quadratic-curve path, so province shapes look organic rather than angular */
+function smoothPath(pointsStr){
+  const pts = pointsStr.trim().split(/\s+/).map(p => p.split(',').map(Number));
+  const n = pts.length;
+  let d = '';
+  const startMid = [(pts[n-1][0]+pts[0][0])/2, (pts[n-1][1]+pts[0][1])/2];
+  d += `M ${startMid[0].toFixed(1)},${startMid[1].toFixed(1)} `;
+  for(let i = 0; i < n; i++){
+    const p1 = pts[i], p2 = pts[(i+1) % n];
+    const mid = [(p1[0]+p2[0])/2, (p1[1]+p2[1])/2];
+    d += `Q ${p1[0].toFixed(1)},${p1[1].toFixed(1)} ${mid[0].toFixed(1)},${mid[1].toFixed(1)} `;
+  }
+  return d + 'Z';
+}
+
+function filterDescription(){
+  const parts = [];
+  parts.push(state.voltage === 'all' ? 'all voltage levels' : state.voltage);
+  parts.push(state.substation === 'all' ? 'all substations' : state.substation);
+  if(state.feeder !== 'all') parts.push(state.feeder);
+  return parts.join(' · ');
+}
+
+const MAX_SERIES = 12;
+
+function renderTrendSVG(){
+  const container = document.getElementById('trendChart');
+  const legendEl = document.getElementById('chartLegend');
+  const records = filteredRecords();
+  document.getElementById('trendTitle').textContent = filterDescription();
+
+  let series = records.map(r => ({ key: r.f, sub: r.s, values: r.m }));
+  let hiddenCount = 0;
+  if(series.length > MAX_SERIES){
+    series = series.slice().sort((a,b) => b.values.reduce((x,y)=>x+y,0) - a.values.reduce((x,y)=>x+y,0));
+    hiddenCount = series.length - MAX_SERIES;
+    series = series.slice(0, MAX_SERIES);
+  }
+
+  const n = MONTHS.length;
+  const W = Math.max(container.clientWidth, 320);
+  const H = Math.max(container.clientHeight, 220);
+  const padL = 46, padR = 20, padT = 36, padB = 30;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const allVals = series.length ? series.flatMap(s => s.values) : [0];
+  const maxVal = niceMax(Math.max(...allVals, 0.0001));
+  const minVal = niceMin(Math.min(...allVals, 0));
+  const range = maxVal - minVal;
+  const yPos = v => padT + plotH - ((v - minVal) / range) * plotH;
+  const zeroY = yPos(0);
+  const colW = plotW / n;
+  const xPos = i => padL + i * colW + colW / 2;
+
+  let grid = '', yLabels = '';
+  const steps = 4;
+  for(let s = 0; s <= steps; s++){
+    const val = minVal + range * s / steps;
+    const yy = yPos(val);
+    grid += svgEl('line', { x1: padL, y1: yy.toFixed(1), x2: W - padR, y2: yy.toFixed(1), stroke: BORDER, 'stroke-width': 1 });
+    yLabels += svgEl('text', { x: padL - 8, y: (yy + 3.5).toFixed(1), 'font-size': 10, 'text-anchor': 'end', fill: INK_FAINT }, fmt(val, 0));
+  }
+  /* explicit zero baseline when the range dips negative */
+  let zeroBaseline = '';
+  if(minVal < 0){
+    zeroBaseline = svgEl('line', { x1: padL, y1: zeroY.toFixed(1), x2: W - padR, y2: zeroY.toFixed(1), stroke: INK_FAINT, 'stroke-width': 1.2 });
+  }
+
+  /* highlight the selected month with a soft vertical band */
+  let monthHighlight = '';
+  if(state.monthIdx !== 'all'){
+    const cx = padL + state.monthIdx * colW;
+    monthHighlight = svgEl('rect', {
+      x: cx.toFixed(1), y: padT, width: colW.toFixed(1), height: plotH, fill: 'rgba(255,181,71,0.14)'
+    });
+  }
+
+  /* invisible per-month click zones, for filtering by month */
+  const monthZones = MONTHS.map((_, i) => {
+    return `<g class="month-bar" data-month="${i}" style="cursor:pointer">
+      ${svgEl('rect', { x: (padL + i*colW).toFixed(1), y: padT, width: colW.toFixed(1), height: plotH, fill: 'transparent' })}
+    </g>`;
+  }).join('');
+
+  /* one line + area fill (down to the zero baseline) + points per feeder */
+  let areas = '', lines = '', points = '', valueLabels = '';
+  series.forEach((s, si) => {
+    const color = colorFor(si);
+    const path = s.values.map((v,i) => (i === 0 ? 'M' : 'L') + xPos(i).toFixed(1) + ',' + yPos(v).toFixed(1)).join(' ');
+    const areaPath = path +
+      ` L${xPos(n-1).toFixed(1)},${zeroY.toFixed(1)} L${xPos(0).toFixed(1)},${zeroY.toFixed(1)} Z`;
+    areas += svgEl('path', { d: areaPath, fill: color, opacity: 0.13, stroke: 'none', 'pointer-events': 'none' });
+    lines += svgEl('path', { d: path, fill: 'none', stroke: color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: 0.9, 'pointer-events': 'none' });
+
+    s.values.forEach((v, i) => {
+      const isSelected = state.monthIdx === i;
+      points += svgEl('circle', {
+        cx: xPos(i).toFixed(1), cy: yPos(v).toFixed(1), r: isSelected ? 3.6 : 2.4, fill: color, stroke: '#1D2142', 'stroke-width': 1,
+        'data-month': i, style: 'cursor:pointer'
+      }, svgEl('title', {}, `${s.key} — ${MONTHS[i]}: ${fmt(v)} MW`));
+
+      const isNeg = v < 0;
+      const ly = isNeg ? yPos(v) + 13 : yPos(v) - 7;
+      valueLabels += svgEl('text', {
+        x: xPos(i).toFixed(1), y: ly.toFixed(1), 'font-size': 8.5, 'text-anchor': 'middle', fill: INK_SOFT, 'pointer-events': 'none'
+      }, fmt(v, Math.abs(v) < 10 ? 2 : 1));
+    });
+  });
+
+  const xLabels = MONTHS.map((m,i) => svgEl('text', {
+    x: xPos(i).toFixed(1), y: H - 8, 'font-size': 10, 'text-anchor': 'middle',
+    fill: state.monthIdx === i ? INK : INK_FAINT,
+    'font-weight': state.monthIdx === i ? 600 : 400
+  }, m.split(' ')[0])).join('');
+
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+    ${grid}${yLabels}${monthHighlight}${monthZones}
+    ${areas}${lines}${points}${zeroBaseline}${valueLabels}${xLabels}
+  </svg>`;
+
+  const handleMonthClick = (mi) => {
+    state.monthIdx = state.monthIdx === mi ? 'all' : mi;
+    monthSelect.value = state.monthIdx;
+    renderAll();
+  };
+  container.querySelectorAll('.month-bar').forEach(g => {
+    g.addEventListener('click', () => handleMonthClick(parseInt(g.getAttribute('data-month'), 10)));
+  });
+  container.querySelectorAll('circle[data-month]').forEach(c => {
+    c.addEventListener('click', () => handleMonthClick(parseInt(c.getAttribute('data-month'), 10)));
+  });
+
+  /* legend */
+  let legendHtml = series.map((s, si) => `<span class="legend-item"><i style="background:${colorFor(si)}"></i>${s.key}</span>`).join('');
+  if(hiddenCount > 0){
+    legendHtml += `<span class="legend-note">+${hiddenCount} more feeder${hiddenCount === 1 ? '' : 's'} — narrow with Substation or Feeder filter to see all</span>`;
+  }
+  legendEl.innerHTML = legendHtml;
+}
+
+function updateTrendChart(){ renderTrendSVG(); }
+
+/* ---------- Province page ---------- */
+const peakRecordIdx = PROV_RECORDS.reduce((best, r, i) => r.total > PROV_RECORDS[best].total ? i : best, 0);
+const peakRecord = PROV_RECORDS[peakRecordIdx];
+
+function starIconSvg(color){
+  return `<svg width="18" height="18" viewBox="0 0 26 26" fill="none">
+    <path d="M13 3 L16 11 L24 11 L17.5 16 L20 24 L13 19 L6 24 L8.5 16 L2 11 L10 11 Z" fill="${color}"/>
+  </svg>`;
+}
+function boltIconSvg(color){
+  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M13 2 L4 14 H11 L10 22 L20 9 H13 L13 2Z" fill="${color}"/></svg>`;
+}
+function gridIconSvg(color){
+  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="2" fill="${color}"/><rect x="13" y="3" width="8" height="8" rx="2" fill="${color}" opacity="0.55"/><rect x="3" y="13" width="8" height="8" rx="2" fill="${color}" opacity="0.55"/><rect x="13" y="13" width="8" height="8" rx="2" fill="${color}" opacity="0.3"/></svg>`;
+}
+
+function renderPeakSummary(){
+  const el = document.getElementById('peakSummary');
+  el.innerHTML = `
+    <div class="stat-card">
+      <div class="sc-top">
+        <div class="sc-icon" style="background:${PEAK}22;">${starIconSvg(PEAK)}</div>
+        <div>
+          <div class="sc-label">Peak load — Sum province</div>
+          <div class="sc-value">${fmt(peakRecord.total)}<span>MW</span></div>
+          <div class="sc-sub">Occurred ${peakRecord.peak}</div>
+        </div>
+      </div>
+      <div class="sc-chart"><div class="chart-svg" id="statChartTotal"></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-top">
+        <div class="sc-icon" style="background:${ACCENT}22;">${boltIconSvg(ACCENT)}</div>
+        <div>
+          <div class="sc-label">SUM REG1 — peak month</div>
+          <div class="sc-value">${fmt(peakRecord.reg1)}<span>MW</span></div>
+          <div class="sc-sub">${peakRecord.label}</div>
+        </div>
+      </div>
+      <div class="sc-chart"><div class="chart-svg" id="statChartReg1"></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-top">
+        <div class="sc-icon" style="background:${colorFor(2)}22;">${gridIconSvg(colorFor(2))}</div>
+        <div>
+          <div class="sc-label">SUM REG4 — peak month</div>
+          <div class="sc-value">${fmt(peakRecord.reg4)}<span>MW</span></div>
+          <div class="sc-sub">${peakRecord.label}</div>
+        </div>
+      </div>
+      <div class="sc-chart"><div class="chart-svg" id="statChartReg4"></div></div>
+    </div>
+  `;
+  renderSparkline('statChartTotal', PROV_RECORDS.map(r => r.total), ACCENT);
+  renderSparkline('statChartReg1', PROV_RECORDS.map(r => r.reg1), ACCENT);
+  renderSparkline('statChartReg4', PROV_RECORDS.map(r => r.reg4), colorFor(2));
+}
+
+function renderSparkline(containerId, values, color){
+  const container = document.getElementById(containerId);
+  if(!container) return;
+  const n = values.length;
+  const W = Math.max(container.clientWidth, 120);
+  const H = Math.max(container.clientHeight, 50);
+  const pad = 4;
+  const plotW = W - pad*2, plotH = H - pad*2;
+  const maxVal = Math.max(...values, 0.0001);
+  const minVal = Math.min(...values, 0);
+  const range = (maxVal - minVal) || 1;
+  const xPos = i => pad + (n === 1 ? plotW/2 : i * (plotW / (n - 1)));
+  const yPos = v => pad + plotH - ((v - minVal) / range) * plotH;
+
+  const linePath = values.map((v,i) => (i === 0 ? 'M' : 'L') + xPos(i).toFixed(1) + ',' + yPos(v).toFixed(1)).join(' ');
+  const areaPath = linePath + ` L${xPos(n-1).toFixed(1)},${(pad+plotH).toFixed(1)} L${xPos(0).toFixed(1)},${(pad+plotH).toFixed(1)} Z`;
+  const gradId = 'grad_' + containerId;
+
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" preserveAspectRatio="none" style="width:100%;height:100%;display:block;">
+    <defs>
+      <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${color}" stop-opacity="0.45"/>
+        <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <path d="${areaPath}" fill="url(#${gradId})" stroke="none"/>
+    <path d="${linePath}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg>`;
+}
+
+function renderProvinceMiniMap(){
+  const container = document.getElementById('provMiniMap');
+
+  const ML = 40, MT = 40, MR = 165, MB = 165;
+  const VBW = MAP_IMG_W + ML + MR, VBH = MAP_IMG_H + MT + MB;
+
+  const ranked = PROVINCE_KEYS.slice().sort((a,b) => peakRecord.provinces[b] - peakRecord.provinces[a]);
+  const rankOf = {};
+  ranked.forEach((k,i) => rankOf[k] = i+1);
+  const rankColors = { 1: '#FFD54F', 2: '#CFD8DC', 3: '#D7A46A' };
+
+  const defs = `<defs>
+    ${PROVINCE_KEYS.map(key => {
+      const c = PROVINCE_INFO[key].color;
+      return `<linearGradient id="grad_${key}" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="${c}" stop-opacity="0.95"/>
+        <stop offset="100%" stop-color="${c}" stop-opacity="0.72"/>
+      </linearGradient>`;
+    }).join('')}
+    <filter id="shapeShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="2.2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>`;
+
+  /* faint dotted graticule backdrop for a technical map feel */
+  let graticule = '';
+  for(let gx = ML; gx <= ML+MAP_IMG_W; gx += 55){
+    graticule += svgEl('line', { x1: gx, y1: MT, x2: gx, y2: MT+MAP_IMG_H, stroke: 'rgba(255,255,255,0.035)', 'stroke-width': 1 });
+  }
+  for(let gy = MT; gy <= MT+MAP_IMG_H; gy += 55){
+    graticule += svgEl('line', { x1: ML, y1: gy, x2: ML+MAP_IMG_W, y2: gy, stroke: 'rgba(255,255,255,0.035)', 'stroke-width': 1 });
+  }
+
+  let shapeFills = '', shapeLabels = '';
+  PROVINCE_KEYS.forEach((key, idx) => {
+    const info = PROVINCE_INFO[key];
+    const shiftedPts = info.points.split(' ').map(p => {
+      const [x,y] = p.split(',').map(Number);
+      return `${(x+ML).toFixed(1)},${(y+MT).toFixed(1)}`;
+    }).join(' ');
+    shapeFills += `<g class="shape-group" data-key="${key}" style="animation-delay:${(idx*0.08).toFixed(2)}s">
+      ${svgEl('path', {
+        d: smoothPath(shiftedPts), fill: `url(#grad_${key})`, stroke: '#141833', 'stroke-width': 2.6,
+        'stroke-linejoin': 'round', filter: 'url(#shapeShadow)', class: 'province-shape'
+      }, svgEl('title', {}, `${info.th} (${key}) — ${fmt(peakRecord.provinces[key])} MW · ${peakRecord.label}`))}
+    </g>`;
+    shapeLabels += svgEl('text', {
+      x: (info.cx+ML).toFixed(1), y: (info.cy+MT-3).toFixed(1), 'font-size': 17, 'font-weight': 700,
+      'text-anchor': 'middle', fill: '#1D2142'
+    }, key);
+    shapeLabels += svgEl('text', {
+      x: (info.cx+ML).toFixed(1), y: (info.cy+MT+14).toFixed(1), 'font-size': 11,
+      'text-anchor': 'middle', fill: '#1D2142', opacity: 0.75
+    }, info.th);
+  });
+
+  const compass = `<g transform="translate(${ML+MAP_IMG_W-20},${MT+30})">
+    ${svgEl('circle', { cx: 0, cy: 0, r: 20, fill: 'rgba(255,255,255,0.05)', stroke: BORDER, 'stroke-width': 1 })}
+    ${svgEl('path', { d: 'M0,-12 L4,0 L0,12 L-4,0 Z', fill: INK_SOFT })}
+    ${svgEl('text', { x: 0, y: -27, 'font-size': 13, 'font-weight': 700, 'text-anchor': 'middle', fill: INK_SOFT }, 'N')}
+  </g>`;
+
+  let markers = '', leaders = '';
+  PROVINCE_KEYS.forEach((key, idx) => {
+    const info = PROVINCE_INFO[key];
+    const color = info.color;
+    const values = PROV_RECORDS.map(r => r.provinces[key]);
+    const value = peakRecord.provinces[key];
+    const cx = ML + info.cx, cy = MT + info.cy;
+    const delay = (idx * 0.09).toFixed(2);
+    const rank = rankOf[key];
+    const badgeFill = rankColors[rank] || '#2A2F55';
+    const badgeText = rankColors[rank] ? '#1D2142' : INK_SOFT;
+
+    const rings = [0, 0.5, 1].map(off => svgEl('circle', {
+      cx: cx.toFixed(1), cy: cy.toFixed(1), r: 8, fill: 'none', stroke: '#1D2142', 'stroke-width': 2,
+      class: 'pulse-ring', style: `animation-delay:${(off + idx*0.15).toFixed(2)}s`
+    })).join('');
+
+    markers += `<g class="marker-group" data-key="${key}">
+      ${svgEl('title', {}, `${info.th} (${key}) — ${fmt(value)} MW · ${peakRecord.label} · Rank #${rank}`)}
+      ${rings}
+      ${svgEl('circle', { cx: cx.toFixed(1), cy: cy.toFixed(1), r: 5.5, fill: '#1D2142', stroke: '#FFFFFF', 'stroke-width': 1.8, class: 'marker-dot', style: `animation-delay:${delay}s`, filter: 'url(#glow)' })}
+    </g>`;
+
+    const [lxRaw, lyRaw] = info.callout;
+    const lx = ML + lxRaw, ly = MT + lyRaw;
+    const midx = (cx + lx) / 2, midy = (cy + ly) / 2;
+
+    const boxW = 128, boxH = 68;
+    const boxX = Math.min(Math.max(lx - boxW/2, 4), VBW - boxW - 4);
+    const boxY = Math.min(Math.max(ly - boxH/2, 4), VBH - boxH - 4);
+
+    const maxV = Math.max(...values, 0.0001), minV = Math.min(...values, 0);
+    const range = (maxV - minV) || 1;
+    const sx0 = boxX + 11, sx1 = boxX + boxW - 11, sy0 = boxY + 26, sy1 = boxY + 44;
+    const sxPos = j => sx0 + j * ((sx1-sx0) / (values.length - 1));
+    const syPos = v => sy1 - ((v - minV) / range) * (sy1 - sy0);
+    const sparkLine = values.map((v,j) => (j===0?'M':'L') + sxPos(j).toFixed(1) + ',' + syPos(v).toFixed(1)).join(' ');
+    const sparkArea = sparkLine + ` L${sxPos(values.length-1).toFixed(1)},${sy1} L${sxPos(0).toFixed(1)},${sy1} Z`;
+
+    leaders += `<g class="callout-group" data-key="${key}" style="animation-delay:${(0.3+delay*1).toFixed(2)}s">
+      ${svgEl('path', {
+        d: `M${cx.toFixed(1)},${cy.toFixed(1)} Q${midx.toFixed(1)},${midy.toFixed(1)} ${lx.toFixed(1)},${ly.toFixed(1)}`,
+        fill: 'none', stroke: color, 'stroke-width': 1.5, opacity: 0.85, 'stroke-dasharray': '5 4', class: 'leader-flow'
+      })}
+      ${svgEl('rect', { class: 'callout-card', x: boxX.toFixed(1), y: boxY.toFixed(1), width: boxW, height: boxH, rx: 12, fill: 'rgba(20,24,51,0.94)', stroke: color, 'stroke-width': 1.8 })}
+      ${svgEl('rect', { x: boxX.toFixed(1), y: boxY.toFixed(1), width: boxW, height: 4, rx: 2, fill: color })}
+      ${svgEl('circle', { cx: (boxX+13).toFixed(1), cy: (boxY-2).toFixed(1), r: 11, fill: badgeFill })}
+      ${svgEl('text', { x: (boxX+13).toFixed(1), y: (boxY+2).toFixed(1), 'font-size': 11, 'font-weight': 700, 'text-anchor': 'middle', fill: badgeText }, rank)}
+      ${svgEl('text', { x: (boxX+29).toFixed(1), y: (boxY+19).toFixed(1), 'font-size': 13, 'font-weight': 700, fill: INK }, key)}
+      ${svgEl('text', { x: (boxX+boxW-11).toFixed(1), y: (boxY+19).toFixed(1), 'font-size': 11.5, 'text-anchor': 'end', fill: color }, fmt(value,0)+' MW')}
+      ${svgEl('path', { d: sparkArea, fill: color, opacity: 0.16, stroke: 'none' })}
+      ${svgEl('path', { d: sparkLine, fill: 'none', stroke: color, 'stroke-width': 1.8, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' })}
+      ${svgEl('text', { x: (boxX+boxW/2).toFixed(1), y: (boxY+boxH-8).toFixed(1), 'font-size': 9, 'text-anchor': 'middle', fill: INK_FAINT }, '7-MONTH TREND')}
+    </g>`;
+  });
+
+  const legendBox = `<g transform="translate(${ML+10},${MT+10})">
+    ${svgEl('rect', { x: 0, y: 0, width: 172, height: 30, rx: 8, fill: 'rgba(20,24,51,0.75)', stroke: 'rgba(255,255,255,0.12)', 'stroke-width': 1 })}
+    ${svgEl('circle', { cx: 16, cy: 15, r: 4, fill: PEAK })}
+    ${svgEl('text', { x: 27, y: 19.5, 'font-size': 12.5, fill: INK_SOFT }, `Peak month: ${peakRecord.label}`)}
+  </g>`;
+
+  const renderW = Math.max(container.clientWidth, 320);
+  const renderH = renderW * (VBH / VBW);
+
+  container.innerHTML = `<svg viewBox="0 0 ${VBW} ${VBH}" width="${renderW.toFixed(0)}" height="${renderH.toFixed(0)}" style="width:100%;height:auto;display:block;">
+    ${defs}${graticule}${shapeFills}${shapeLabels}${leaders}${markers}${compass}${legendBox}
+  </svg>`;
+
+  /* link hover between a marker, its shape, and its callout */
+  const groups = container.querySelectorAll('.marker-group, .callout-group, .shape-group');
+  groups.forEach(g => {
+    const key = g.getAttribute('data-key');
+    g.addEventListener('mouseenter', () => {
+      container.querySelectorAll(`[data-key="${key}"]`).forEach(el => el.classList.add('is-active'));
+    });
+    g.addEventListener('mouseleave', () => {
+      container.querySelectorAll(`[data-key="${key}"]`).forEach(el => el.classList.remove('is-active'));
+    });
+  });
+}
+
+function buildProvToggles(){
+  const el = document.getElementById('provToggles');
+  if(!el) return;
+  el.innerHTML = PROVINCE_KEYS.map((key, i) => {
+    const color = colorFor(i);
+    const on = provChartEnabled.has(key);
+    return `<label class="prov-toggle${on ? ' is-on' : ''}" data-key="${key}" style="--pt-color:${color}">
+      <input type="checkbox" ${on ? 'checked' : ''}>
+      <span class="pt-dot"></span>${key}
+    </label>`;
+  }).join('');
+
+  el.querySelectorAll('.prov-toggle').forEach(label => {
+    label.addEventListener('click', (e) => {
+      e.preventDefault();
+      const key = label.getAttribute('data-key');
+      if(provChartEnabled.has(key)) provChartEnabled.delete(key);
+      else provChartEnabled.add(key);
+      const on = provChartEnabled.has(key);
+      label.classList.toggle('is-on', on);
+      label.querySelector('input').checked = on;
+      renderProvinceSVG();
+    });
+  });
+}
+
+function renderProvinceSVG(){
+  const container = document.getElementById('provChart');
+  const legendEl = document.getElementById('provLegend');
+
+  const n = PROV_RECORDS.length;
+  const series = PROVINCE_KEYS
+    .map((key, i) => ({ key, i, values: PROV_RECORDS.map(r => r.provinces[key]) }))
+    .filter(s => provChartEnabled.has(s.key));
+  const nSeries = series.length;
+
+  const W = Math.max(container.clientWidth, 320);
+  const H = Math.max(container.clientHeight, 220);
+  const padL = 46, padR = 20, padT = 36, padB = 30;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const allVals = series.flatMap(s => s.values);
+  const maxVal = niceMax(Math.max(...allVals, 0.0001));
+  const yPos = v => padT + plotH - (v / maxVal) * plotH;
+  const colW = n ? plotW / n : plotW;
+
+  const groupPad = colW * 0.16;
+  const usableGroupW = colW - groupPad * 2;
+  const safeN = Math.max(nSeries, 1);
+  const barGap = nSeries > 1 ? Math.min(3, usableGroupW / (nSeries * 5)) : 0;
+  const barW = Math.max((usableGroupW - barGap * (safeN - 1)) / safeN, 1.2);
+  const barXInGroup = si => groupPad + si * (barW + barGap);
+  const barCenterX = (i, si) => padL + i * colW + barXInGroup(si) + barW / 2;
+  const labelHorizontal = (barW + barGap) >= 26;
+
+  let grid = '', yLabels = '';
+  const steps = 4;
+  for(let s = 0; s <= steps; s++){
+    const val = maxVal * s / steps;
+    const yy = yPos(val);
+    grid += svgEl('line', { x1: padL, y1: yy.toFixed(1), x2: W - padR, y2: yy.toFixed(1), stroke: BORDER, 'stroke-width': 1 });
+    yLabels += svgEl('text', { x: padL - 8, y: (yy + 3.5).toFixed(1), 'font-size': 10, 'text-anchor': 'end', fill: INK_FAINT }, fmt(val, 0));
+  }
+
+  const peakHighlight = svgEl('rect', { x: (padL + peakRecordIdx*colW).toFixed(1), y: padT, width: colW.toFixed(1), height: plotH, fill: 'rgba(255,181,71,0.14)' });
+
+  let bars = '', valueLabels = '';
+  series.forEach((s, si) => {
+    const color = colorFor(s.i);
+    s.values.forEach((v, i) => {
+      const bx = padL + i * colW + barXInGroup(si);
+      const by = yPos(v);
+      const bh = Math.max((padT + plotH) - by, 0);
+      bars += svgEl('rect', {
+        x: bx.toFixed(1), y: by.toFixed(1), width: barW.toFixed(1), height: bh.toFixed(1), rx: Math.min(1.5, barW/3), fill: color, opacity: 0.85
+      }, svgEl('title', {}, `${s.key} — ${PROV_RECORDS[i].label}: ${fmt(v)} MW`));
+
+      const lx = barCenterX(i, si);
+      const ly = by - 5;
+      const labelText = fmt(v, v < 10 ? 2 : 1);
+      if(labelHorizontal){
+        valueLabels += svgEl('text', { x: lx.toFixed(1), y: ly.toFixed(1), 'font-size': 9, 'text-anchor': 'middle', fill: INK_SOFT }, labelText);
+      } else {
+        valueLabels += svgEl('text', {
+          x: (lx+3).toFixed(1), y: ly.toFixed(1), 'font-size': 8, 'text-anchor': 'start', fill: INK_SOFT,
+          transform: `rotate(-90 ${(lx+3).toFixed(1)} ${ly.toFixed(1)})`
+        }, labelText);
+      }
+    });
+  });
+
+  let lines = '', points = '';
+  series.forEach((s, si) => {
+    const color = colorFor(s.i);
+    const path = s.values.map((v,i) => (i === 0 ? 'M' : 'L') + barCenterX(i, si).toFixed(1) + ',' + yPos(v).toFixed(1)).join(' ');
+    lines += svgEl('path', { d: path, fill: 'none', stroke: color, 'stroke-width': 1.4, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: 0.75 });
+    points += s.values.map((v,i) => svgEl('circle', {
+        cx: barCenterX(i, si).toFixed(1), cy: yPos(v).toFixed(1), r: i === peakRecordIdx ? 3.2 : 2.2, fill: color, stroke: '#1D2142', 'stroke-width': 1
+      }, svgEl('title', {}, `${s.key} — ${PROV_RECORDS[i].label}: ${fmt(v)} MW`))).join('');
+  });
+
+  const xLabels = PROV_RECORDS.map((r,i) => svgEl('text', {
+    x: (padL + i*colW + colW/2).toFixed(1), y: H - 8, 'font-size': 10, 'text-anchor': 'middle',
+    fill: i === peakRecordIdx ? INK : INK_FAINT,
+    'font-weight': i === peakRecordIdx ? 600 : 400
+  }, r.label.split(' ')[0])).join('');
+
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+    ${grid}${yLabels}${peakHighlight}
+    ${bars}${lines}${points}${valueLabels}${xLabels}
+  </svg>`;
+
+  legendEl.innerHTML = series.map((s, si) => `<span class="legend-item"><i style="background:${colorFor(s.i)}"></i>${s.key}</span>`).join('');
+}
+function renderProvinceTable(){
+  const body = document.getElementById('provTableBody');
+  body.innerHTML = PROV_RECORDS.map((r, i) => {
+    const isPeak = i === peakRecordIdx;
+    return `<tr class="${isPeak ? 'active-row' : ''}">
+      <td class="month-cell">${r.label}${isPeak ? '<span class="peak-tag">PEAK</span>' : ''}</td>
+      <td class="num total-cell">${fmt(r.total)}</td>
+      <td class="num">${fmt(r.provinces.PNB)}</td>
+      <td class="num">${fmt(r.provinces.NSN)}</td>
+      <td class="num">${fmt(r.provinces.LRI)}</td>
+      <td class="num">${fmt(r.provinces.CNT)}</td>
+      <td class="num">${fmt(r.provinces.SBR)}</td>
+      <td class="num">${fmt(r.provinces.UTI)}</td>
+      <td class="num">${fmt(r.reg1)}</td>
+      <td class="num">${fmt(r.reg4)}</td>
+      <td>${r.peak}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderProvTotalLine(){
+  const container = document.getElementById('provTotalChart');
+
+  const n = PROV_RECORDS.length;
+  const values = PROV_RECORDS.map(r => r.total);
+
+  const W = Math.max(container.clientWidth, 260);
+  const H = Math.max(container.clientHeight, 200);
+  const padL = 50, padR = 30, padT = 30, padB = 28;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const maxVal = niceMax(Math.max(...values, 0.0001));
+  const xPos = i => padL + (n === 1 ? plotW/2 : i * (plotW / (n - 1)));
+  const yPos = v => padT + plotH - (v / maxVal) * plotH;
+  const zoneW = n > 1 ? plotW / (n - 1) : plotW;
+
+  let grid = '', yLabels = '';
+  const steps = 4;
+  for(let s = 0; s <= steps; s++){
+    const val = maxVal * s / steps;
+    const yy = yPos(val);
+    grid += svgEl('line', { x1: padL, y1: yy.toFixed(1), x2: W - padR, y2: yy.toFixed(1), stroke: BORDER, 'stroke-width': 1 });
+    yLabels += svgEl('text', { x: padL - 8, y: (yy + 3.5).toFixed(1), 'font-size': 10, 'text-anchor': 'end', fill: INK_FAINT }, fmt(val, 0));
+  }
+
+  const zx = xPos(peakRecordIdx) - zoneW/2;
+  const peakHighlight = svgEl('rect', { x: zx.toFixed(1), y: padT, width: zoneW.toFixed(1), height: plotH, fill: 'rgba(255,181,71,0.14)' });
+
+  const linePath = values.map((v,i) => (i === 0 ? 'M' : 'L') + xPos(i).toFixed(1) + ',' + yPos(v).toFixed(1)).join(' ');
+
+  const points = values.map((v,i) => {
+    const isPeak = i === peakRecordIdx;
+    return svgEl('circle', {
+      cx: xPos(i).toFixed(1), cy: yPos(v).toFixed(1), r: isPeak ? 4.5 : 3.2, fill: isPeak ? PEAK : ACCENT, stroke: '#1D2142', 'stroke-width': 1.4
+    }, svgEl('title', {}, `${PROV_RECORDS[i].label}: ${fmt(v)} MW`));
+  }).join('');
+
+  const valueLabels = values.map((v,i) => svgEl('text', {
+    x: xPos(i).toFixed(1), y: (yPos(v) - 9).toFixed(1), 'font-size': 9.5, 'text-anchor': 'middle', fill: INK_SOFT
+  }, fmt(v))).join('');
+
+  const xLabels = PROV_RECORDS.map((r,i) => svgEl('text', {
+    x: xPos(i).toFixed(1), y: H - 8, 'font-size': 10, 'text-anchor': 'middle',
+    fill: i === peakRecordIdx ? INK : INK_FAINT,
+    'font-weight': i === peakRecordIdx ? 600 : 400
+  }, r.label.split(' ')[0])).join('');
+
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+    ${grid}${yLabels}${peakHighlight}
+    <path d="${linePath}" fill="none" stroke="${ACCENT}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
+    ${points}${valueLabels}${xLabels}
+  </svg>`;
+}
+
+function provRenderAll(){
+  renderPeakSummary();
+  renderProvinceSVG();
+  renderProvTotalLine();
+  renderProvinceMiniMap();
+  renderProvinceTable();
+}
+
+/* ---------- page navigation ---------- */
+let currentPage = 'load01';
+const pageMeta = {
+  load01: {
+    title: 'Load Monitor',
+    subtitle: 'SUBSTATION & FEEDER LOAD — JAN – JUN 2026',
+    meta: '<div><strong>450</strong> feeders · <strong>51</strong> substations · <strong>2</strong> voltage classes</div><div>Source: monthly load register</div>',
+    footer: 'Values reflect metered load per feeder, shown individually (not summed), aggregated monthly. Click a month on the chart to filter by it.'
+  },
+  province: {
+    title: 'Province Load Peak',
+    subtitle: 'MONTHLY PEAK LOAD BY PROVINCE — JAN – JUL 2026',
+    meta: '<div><strong>6</strong> provinces · <strong>2</strong> regions</div><div>Source: monthly peak register</div>',
+    footer: 'Each month shows province-level load at the moment total province load peaked. The overall peak month is highlighted across all charts and the table.'
+  }
+};
+
+function switchPage(page){
+  currentPage = page;
+  document.getElementById('page-load01').hidden = page !== 'load01';
+  document.getElementById('page-province').hidden = page !== 'province';
+  document.querySelectorAll('.side-nav-item').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-page') === page);
+  });
+  const m = pageMeta[page];
+  document.getElementById('pageTitle').textContent = m.title;
+  document.getElementById('pageEyebrow').textContent = m.subtitle;
+  document.getElementById('headerMeta').innerHTML = m.meta;
+  document.getElementById('pageFooter').textContent = m.footer;
+
+  if(page === 'province') provRenderAll();
+  else renderAll();
+}
+
+document.querySelectorAll('.side-nav-item').forEach(btn => {
+  btn.addEventListener('click', () => switchPage(btn.getAttribute('data-page')));
+});
+
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if(currentPage === 'province'){
+      renderProvinceSVG();
+      renderProvTotalLine();
+      renderSparkline('statChartTotal', PROV_RECORDS.map(r => r.total), ACCENT);
+      renderSparkline('statChartReg1', PROV_RECORDS.map(r => r.reg1), ACCENT);
+      renderSparkline('statChartReg4', PROV_RECORDS.map(r => r.reg4), colorFor(2));
+      renderProvinceMiniMap();
+    } else {
+      renderTrendSVG();
+    }
+  }, 120);
+});
+
+function renderAll(){
+  updateTrendChart();
+}
+
+switchPage('load01');
+}
+
+boot();
+</script>
+
+</body>
+</html>
