@@ -204,7 +204,8 @@
     color:var(--ink-faint);
     font-weight:600;
   }
-  select{
+  .msel{position:relative;}
+  .msel-trigger{
     appearance:none;
     -webkit-appearance:none;
     background:var(--bg);
@@ -215,14 +216,87 @@
     font-size:13px;
     color:var(--ink);
     min-width:190px;
+    text-align:left;
     cursor:pointer;
     background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0L5 6L10 0Z' fill='%23A9B2D6'/></svg>");
     background-repeat:no-repeat;
     background-position:right 14px center;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
   }
-  select:focus, button:focus-visible{
-    outline:2px solid var(--accent);
-    outline-offset:1px;
+  .msel-trigger.has-selection{border-color:var(--accent); color:var(--ink);}
+  .msel.is-open .msel-trigger{border-color:var(--accent); outline:2px solid var(--accent); outline-offset:1px;}
+  .msel-panel{
+    position:absolute;
+    top:calc(100% + 6px);
+    left:0;
+    z-index:40;
+    min-width:240px;
+    max-width:320px;
+    background:var(--surface-alt);
+    border:1px solid var(--border);
+    border-radius:10px;
+    box-shadow:0 12px 32px rgba(0,0,0,0.45);
+    padding:8px;
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+  .msel-panel[hidden]{display:none;}
+  .msel-search-wrap{padding:2px 2px 8px;}
+  .msel-search{
+    width:100%;
+    box-sizing:border-box;
+    background:var(--bg);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:8px 10px;
+    font-family:var(--font-body);
+    font-size:13px;
+    color:var(--ink);
+  }
+  .msel-search:focus{outline:2px solid var(--accent); outline-offset:1px;}
+  .msel-options{
+    max-height:260px;
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column;
+    gap:1px;
+  }
+  .msel-option{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    padding:8px 8px;
+    border-radius:6px;
+    cursor:pointer;
+    font-family:var(--font-mono);
+    font-size:13px;
+    color:var(--ink-soft);
+    -webkit-tap-highlight-color:transparent;
+    user-select:none;
+  }
+  .msel-option:hover{background:rgba(255,255,255,0.06); color:var(--ink);}
+  .msel-option input[type="checkbox"]{
+    accent-color:var(--accent);
+    width:16px;height:16px;
+    flex:none;
+    cursor:pointer;
+  }
+  .msel-all{
+    border-bottom:1px solid var(--border);
+    margin-bottom:4px;
+    padding-bottom:10px;
+    font-weight:600;
+    color:var(--ink);
+  }
+  .msel-empty{
+    padding:14px 8px;
+    font-family:var(--font-mono);
+    font-size:12.5px;
+    color:var(--ink-faint);
+    text-align:center;
   }
   .reset-btn{
     border:1px solid var(--border);
@@ -608,21 +682,39 @@
 
   <section>
     <div class="filter-bar">
-      <div class="field">
-        <label for="voltageSelect">Voltage level</label>
-        <select id="voltageSelect"></select>
+      <div class="field msel" data-field="voltage">
+        <label>Voltage level</label>
+        <button type="button" class="msel-trigger" id="voltageTrigger">All voltage levels</button>
+        <div class="msel-panel" id="voltagePanel" hidden>
+          <label class="msel-option msel-all"><input type="checkbox" class="msel-all-cb"><span>All voltage levels</span></label>
+          <div class="msel-options" id="voltageOptions"></div>
+        </div>
       </div>
-      <div class="field">
-        <label for="substationSelect">Substation</label>
-        <select id="substationSelect"></select>
+      <div class="field msel" data-field="substation">
+        <label>Substation</label>
+        <button type="button" class="msel-trigger" id="substationTrigger">All substations</button>
+        <div class="msel-panel" id="substationPanel" hidden>
+          <div class="msel-search-wrap"><input type="text" class="msel-search" id="substationSearch" placeholder="Search substations..."></div>
+          <label class="msel-option msel-all"><input type="checkbox" class="msel-all-cb"><span>All substations</span></label>
+          <div class="msel-options" id="substationOptions"></div>
+        </div>
       </div>
-      <div class="field">
-        <label for="feederSelect">Feeder</label>
-        <select id="feederSelect"></select>
+      <div class="field msel" data-field="feeder">
+        <label>Feeder</label>
+        <button type="button" class="msel-trigger" id="feederTrigger">All feeders</button>
+        <div class="msel-panel" id="feederPanel" hidden>
+          <div class="msel-search-wrap"><input type="text" class="msel-search" id="feederSearch" placeholder="Search feeders..."></div>
+          <label class="msel-option msel-all"><input type="checkbox" class="msel-all-cb"><span>All feeders</span></label>
+          <div class="msel-options" id="feederOptions"></div>
+        </div>
       </div>
-      <div class="field">
-        <label for="monthSelect">Month</label>
-        <select id="monthSelect"></select>
+      <div class="field msel" data-field="month">
+        <label>Month</label>
+        <button type="button" class="msel-trigger" id="monthTrigger">All months</button>
+        <div class="msel-panel" id="monthPanel" hidden>
+          <label class="msel-option msel-all"><input type="checkbox" class="msel-all-cb"><span>All months</span></label>
+          <div class="msel-options" id="monthOptions"></div>
+        </div>
       </div>
       <button class="reset-btn" id="resetBtn">Reset filters</button>
     </div>
@@ -807,76 +899,216 @@ const PALETTE = ['#4C6FFF','#F539A6','#05CD99','#FFB547','#9B5DE5','#00C2FF','#F
 function colorFor(i){ return PALETTE[i % PALETTE.length]; }
 
 const state = {
-  voltage: 'all',
-  substation: 'all',
-  feeder: 'all',
-  monthIdx: 'all'
+  voltage: new Set(),
+  substation: new Set(),
+  feeder: new Set(),
+  monthIdx: new Set()
 };
 
 const voltages = Array.from(new Set(RECORDS.map(r => r.v))).sort();
 
-function substationsFor(voltage){
+function substationsFor(voltageSet){
   const set = new Set();
-  RECORDS.forEach(r => { if(voltage === 'all' || r.v === voltage) set.add(r.s); });
+  RECORDS.forEach(r => { if(voltageSet.size === 0 || voltageSet.has(r.v)) set.add(r.s); });
   return Array.from(set).sort();
 }
 
-function feedersFor(voltage, substation){
+function feedersFor(voltageSet, substationSet){
   return RECORDS.filter(r =>
-    (voltage === 'all' || r.v === voltage) &&
-    (substation === 'all' || r.s === substation)
+    (voltageSet.size === 0 || voltageSet.has(r.v)) &&
+    (substationSet.size === 0 || substationSet.has(r.s))
   ).map(r => r.f).sort();
 }
 
 function filteredRecords(){
   return RECORDS.filter(r =>
-    (state.voltage === 'all' || r.v === state.voltage) &&
-    (state.substation === 'all' || r.s === state.substation) &&
-    (state.feeder === 'all' || r.f === state.feeder)
+    (state.voltage.size === 0 || state.voltage.has(r.v)) &&
+    (state.substation.size === 0 || state.substation.has(r.s)) &&
+    (state.feeder.size === 0 || state.feeder.has(r.f))
   );
 }
 
 function recordsForVoltage(){
-  return RECORDS.filter(r => state.voltage === 'all' || r.v === state.voltage);
+  return RECORDS.filter(r => state.voltage.size === 0 || state.voltage.has(r.v));
 }
 
 function fmt(n, d=1){
   return n.toLocaleString('en-US', {minimumFractionDigits:d, maximumFractionDigits:d});
 }
 
-/* ---------- populate selects ---------- */
-const voltageSelect = document.getElementById('voltageSelect');
-const substationSelect = document.getElementById('substationSelect');
-const feederSelect = document.getElementById('feederSelect');
-const monthSelect = document.getElementById('monthSelect');
+/* ---------- multi-select dropdown filters ---------- */
+function syncAllCheckbox(allCb, selectedSet, totalCount){
+  if(totalCount > 0 && selectedSet.size === totalCount) selectedSet.clear(); // "all individually checked" == "All"
+  allCb.checked = selectedSet.size === 0;
+}
+
+function describeMulti(set, allLabel){
+  if(set.size === 0) return allLabel;
+  if(set.size === 1) return Array.from(set)[0];
+  return `${set.size} selected`;
+}
+
+function setTriggerLabel(triggerEl, set, allLabel){
+  triggerEl.textContent = describeMulti(set, allLabel);
+  triggerEl.classList.toggle('has-selection', set.size > 0);
+}
+
+/* open/close behaviour, shared by all four dropdowns */
+document.querySelectorAll('.msel-trigger').forEach(trigger => {
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const msel = trigger.closest('.msel');
+    const panel = msel.querySelector('.msel-panel');
+    const isOpen = !panel.hidden;
+    document.querySelectorAll('.msel-panel').forEach(p => { p.hidden = true; });
+    document.querySelectorAll('.msel').forEach(m => m.classList.remove('is-open'));
+    if(!isOpen){
+      panel.hidden = false;
+      msel.classList.add('is-open');
+      const search = panel.querySelector('.msel-search');
+      if(search) search.value = '';
+      panel.querySelectorAll('.msel-option').forEach(o => o.style.display = '');
+    }
+  });
+});
+document.querySelectorAll('.msel-panel').forEach(p => p.addEventListener('click', e => e.stopPropagation()));
+document.addEventListener('click', () => {
+  document.querySelectorAll('.msel-panel').forEach(p => { p.hidden = true; });
+  document.querySelectorAll('.msel').forEach(m => m.classList.remove('is-open'));
+});
+
+const voltageTrigger = document.getElementById('voltageTrigger');
+const voltagePanel = document.getElementById('voltagePanel');
+const voltageOptionsEl = document.getElementById('voltageOptions');
+const voltageAllCb = voltagePanel.querySelector('.msel-all-cb');
+
+const substationTrigger = document.getElementById('substationTrigger');
+const substationPanel = document.getElementById('substationPanel');
+const substationOptionsEl = document.getElementById('substationOptions');
+const substationAllCb = substationPanel.querySelector('.msel-all-cb');
+
+const feederTrigger = document.getElementById('feederTrigger');
+const feederPanel = document.getElementById('feederPanel');
+const feederOptionsEl = document.getElementById('feederOptions');
+const feederAllCb = feederPanel.querySelector('.msel-all-cb');
+
+const monthTrigger = document.getElementById('monthTrigger');
+const monthPanel = document.getElementById('monthPanel');
+const monthOptionsEl = document.getElementById('monthOptions');
+const monthAllCb = monthPanel.querySelector('.msel-all-cb');
+
+function wireSearch(inputId, optionsEl){
+  const input = document.getElementById(inputId);
+  if(!input) return;
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    optionsEl.querySelectorAll('.msel-option').forEach(row => {
+      row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+}
+wireSearch('substationSearch', substationOptionsEl);
+wireSearch('feederSearch', feederOptionsEl);
 
 function buildVoltageOptions(){
-  voltageSelect.innerHTML = '<option value="all">All voltage levels</option>' +
-    voltages.map(v => `<option value="${v}">${v}</option>`).join('');
-  voltageSelect.value = state.voltage;
+  voltageOptionsEl.innerHTML = voltages.map(v =>
+    `<label class="msel-option"><input type="checkbox" value="${v}" ${state.voltage.has(v)?'checked':''}><span>${v}</span></label>`
+  ).join('');
+  voltageOptionsEl.querySelectorAll('input').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if(cb.checked) state.voltage.add(cb.value); else state.voltage.delete(cb.value);
+      syncAllCheckbox(voltageAllCb, state.voltage, voltages.length);
+      setTriggerLabel(voltageTrigger, state.voltage, 'All voltage levels');
+      buildSubstationOptions();
+      buildFeederOptions();
+      renderAll();
+    });
+  });
+  syncAllCheckbox(voltageAllCb, state.voltage, voltages.length);
+  setTriggerLabel(voltageTrigger, state.voltage, 'All voltage levels');
 }
+voltageAllCb.addEventListener('change', () => {
+  state.voltage.clear();
+  buildVoltageOptions();
+  buildSubstationOptions();
+  buildFeederOptions();
+  renderAll();
+});
 
 function buildSubstationOptions(){
   const subs = substationsFor(state.voltage);
-  substationSelect.innerHTML = '<option value="all">All substations</option>' +
-    subs.map(s => `<option value="${s}">${s}</option>`).join('');
-  if(!subs.includes(state.substation)) state.substation = 'all';
-  substationSelect.value = state.substation;
+  state.substation = new Set([...state.substation].filter(s => subs.includes(s)));
+  substationOptionsEl.innerHTML = subs.length
+    ? subs.map(s => `<label class="msel-option"><input type="checkbox" value="${s}" ${state.substation.has(s)?'checked':''}><span>${s}</span></label>`).join('')
+    : '<div class="msel-empty">No substations</div>';
+  substationOptionsEl.querySelectorAll('input').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if(cb.checked) state.substation.add(cb.value); else state.substation.delete(cb.value);
+      syncAllCheckbox(substationAllCb, state.substation, subs.length);
+      setTriggerLabel(substationTrigger, state.substation, 'All substations');
+      buildFeederOptions();
+      renderAll();
+    });
+  });
+  syncAllCheckbox(substationAllCb, state.substation, subs.length);
+  setTriggerLabel(substationTrigger, state.substation, 'All substations');
 }
+substationAllCb.addEventListener('change', () => {
+  state.substation.clear();
+  buildSubstationOptions();
+  buildFeederOptions();
+  renderAll();
+});
 
 function buildFeederOptions(){
   const feeders = feedersFor(state.voltage, state.substation);
-  feederSelect.innerHTML = '<option value="all">All feeders</option>' +
-    feeders.map(f => `<option value="${f}">${f}</option>`).join('');
-  if(!feeders.includes(state.feeder)) state.feeder = 'all';
-  feederSelect.value = state.feeder;
+  state.feeder = new Set([...state.feeder].filter(f => feeders.includes(f)));
+  feederOptionsEl.innerHTML = feeders.length
+    ? feeders.map(f => `<label class="msel-option"><input type="checkbox" value="${f}" ${state.feeder.has(f)?'checked':''}><span>${f}</span></label>`).join('')
+    : '<div class="msel-empty">No feeders</div>';
+  feederOptionsEl.querySelectorAll('input').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if(cb.checked) state.feeder.add(cb.value); else state.feeder.delete(cb.value);
+      syncAllCheckbox(feederAllCb, state.feeder, feeders.length);
+      setTriggerLabel(feederTrigger, state.feeder, 'All feeders');
+      renderAll();
+    });
+  });
+  syncAllCheckbox(feederAllCb, state.feeder, feeders.length);
+  setTriggerLabel(feederTrigger, state.feeder, 'All feeders');
 }
+feederAllCb.addEventListener('change', () => {
+  state.feeder.clear();
+  buildFeederOptions();
+  renderAll();
+});
 
-function buildMonthOptions(){
-  monthSelect.innerHTML = '<option value="all">All months</option>' +
-    MONTHS.map((m,i) => `<option value="${i}">${m}</option>`).join('');
-  monthSelect.value = state.monthIdx;
+function syncMonthUI(){
+  syncAllCheckbox(monthAllCb, state.monthIdx, MONTHS.length);
+  monthOptionsEl.querySelectorAll('input').forEach(cb => {
+    cb.checked = state.monthIdx.has(parseInt(cb.value, 10));
+  });
+  setTriggerLabel(monthTrigger, state.monthIdx, 'All months');
 }
+function buildMonthOptions(){
+  monthOptionsEl.innerHTML = MONTHS.map((m,i) =>
+    `<label class="msel-option"><input type="checkbox" value="${i}" ${state.monthIdx.has(i)?'checked':''}><span>${m}</span></label>`
+  ).join('');
+  monthOptionsEl.querySelectorAll('input').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const mi = parseInt(cb.value, 10);
+      if(cb.checked) state.monthIdx.add(mi); else state.monthIdx.delete(mi);
+      syncMonthUI();
+      renderAll();
+    });
+  });
+  syncMonthUI();
+}
+monthAllCb.addEventListener('change', () => {
+  state.monthIdx.clear();
+  syncMonthUI();
+  renderAll();
+});
 
 buildVoltageOptions();
 buildSubstationOptions();
@@ -884,30 +1116,11 @@ buildFeederOptions();
 buildMonthOptions();
 buildProvToggles();
 
-voltageSelect.addEventListener('change', e => {
-  state.voltage = e.target.value;
-  buildSubstationOptions();
-  buildFeederOptions();
-  renderAll();
-});
-substationSelect.addEventListener('change', e => {
-  state.substation = e.target.value;
-  buildFeederOptions();
-  renderAll();
-});
-feederSelect.addEventListener('change', e => {
-  state.feeder = e.target.value;
-  renderAll();
-});
-monthSelect.addEventListener('change', e => {
-  state.monthIdx = e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10);
-  renderAll();
-});
 document.getElementById('resetBtn').addEventListener('click', () => {
-  state.voltage = 'all';
-  state.substation = 'all';
-  state.feeder = 'all';
-  state.monthIdx = 'all';
+  state.voltage.clear();
+  state.substation.clear();
+  state.feeder.clear();
+  state.monthIdx.clear();
   buildVoltageOptions();
   buildSubstationOptions();
   buildFeederOptions();
@@ -960,10 +1173,10 @@ function smoothPath(pointsStr){
 
 function filterDescription(){
   const parts = [];
-  parts.push(state.voltage === 'all' ? 'all voltage levels' : state.voltage);
-  parts.push(state.substation === 'all' ? 'all substations' : state.substation);
-  if(state.feeder !== 'all') parts.push(state.feeder);
-  return parts.join(' · ');
+  parts.push(describeMulti(state.voltage, 'all voltage levels'));
+  parts.push(describeMulti(state.substation, 'all substations'));
+  if(state.feeder.size > 0) parts.push(describeMulti(state.feeder, ''));
+  return parts.filter(Boolean).join(' · ');
 }
 
 const MAX_SERIES = 12;
@@ -1010,14 +1223,14 @@ function renderTrendSVG(){
     zeroBaseline = svgEl('line', { x1: padL, y1: zeroY.toFixed(1), x2: W - padR, y2: zeroY.toFixed(1), stroke: INK_FAINT, 'stroke-width': 1.2 });
   }
 
-  /* highlight the selected month with a soft vertical band */
+  /* highlight the selected month(s) with a soft vertical band */
   let monthHighlight = '';
-  if(state.monthIdx !== 'all'){
-    const cx = padL + state.monthIdx * colW;
-    monthHighlight = svgEl('rect', {
+  state.monthIdx.forEach(mi => {
+    const cx = padL + mi * colW;
+    monthHighlight += svgEl('rect', {
       x: cx.toFixed(1), y: padT, width: colW.toFixed(1), height: plotH, fill: 'rgba(255,181,71,0.14)'
     });
-  }
+  });
 
   /* invisible per-month click zones, for filtering by month */
   const monthZones = MONTHS.map((_, i) => {
@@ -1037,7 +1250,7 @@ function renderTrendSVG(){
     lines += svgEl('path', { d: path, fill: 'none', stroke: color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: 0.9, 'pointer-events': 'none' });
 
     s.values.forEach((v, i) => {
-      const isSelected = state.monthIdx === i;
+      const isSelected = state.monthIdx.has(i);
       points += svgEl('circle', {
         cx: xPos(i).toFixed(1), cy: yPos(v).toFixed(1), r: isSelected ? 3.6 : 2.4, fill: color, stroke: '#1D2142', 'stroke-width': 1,
         'data-month': i, style: 'cursor:pointer'
@@ -1053,8 +1266,8 @@ function renderTrendSVG(){
 
   const xLabels = MONTHS.map((m,i) => svgEl('text', {
     x: xPos(i).toFixed(1), y: H - 8, 'font-size': 10, 'text-anchor': 'middle',
-    fill: state.monthIdx === i ? INK : INK_FAINT,
-    'font-weight': state.monthIdx === i ? 600 : 400
+    fill: state.monthIdx.has(i) ? INK : INK_FAINT,
+    'font-weight': state.monthIdx.has(i) ? 600 : 400
   }, m.split(' ')[0])).join('');
 
   container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
@@ -1063,8 +1276,8 @@ function renderTrendSVG(){
   </svg>`;
 
   const handleMonthClick = (mi) => {
-    state.monthIdx = state.monthIdx === mi ? 'all' : mi;
-    monthSelect.value = state.monthIdx;
+    if(state.monthIdx.has(mi)) state.monthIdx.delete(mi); else state.monthIdx.add(mi);
+    syncMonthUI();
     renderAll();
   };
   container.querySelectorAll('.month-bar').forEach(g => {
